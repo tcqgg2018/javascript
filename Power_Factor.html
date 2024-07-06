@@ -1,0 +1,379 @@
+<!doctype html>
+<html>
+    <head>
+        <!--meta标签-->
+        <meta charset="utf-8"/>
+        <meta name="description" content="这是小谭的学习笔记"/>
+        <meta name = "author" content="小谭"/>
+        <meta name= "keywords" content="小谭,html,学习"/>
+        <meta name="viewport" content="width=device-width, initial-scale= 1.0"/>
+        <title>小谭的网站</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style type="text/css">
+        /* CSS styles here... */
+            /* 为整个页面设置一个背景色 */
+/* 为整个页面设置一个背景色 */
+/* 为整个页面设置一个背景色 */
+body {
+  background-color: #FFFAFA;
+}
+
+/* 为标题设置一个字体，颜色，大小，居中对齐 */
+h1 {
+  font-family: "Arial", sans-serif;
+  color: #2079b0;
+  font-size: 26px;
+  text-align: center;
+}
+
+/* 为段落设置一个字体，颜色，大小，行高，左对齐 */
+p {
+  font-family: "Arial", sans-serif;
+  color: #191970;
+  font-size: 20px;
+  //line-height: 1.5;
+  text-align: left;
+}
+
+/* 为输入框设置一个边框，内边距，外边距，宽度 */
+input {
+  border: 2px solid #2079b0;
+  padding: 10px;
+ //margin: 10px;
+  width: 120px;
+  font-size: 20px;
+}
+
+/* 为按钮设置一个背景色，边框，内边距，外边距，圆角，字体，颜色，鼠标样式 */
+button {
+  background-color: #2079b0;
+  border: none;
+  padding: 10px;
+  margin: 10px;
+  border-radius: 10px;
+  font-family: "Arial", sans-serif;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 25px;
+}
+
+/* 为结果设置一个字体，颜色，大小，加粗，居中对齐 */
+#result {
+  font-family: "Arial", sans-serif;
+  color: #FF4500;
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+
+        </style>
+    
+    </head>
+    <body>
+       
+       
+
+        <h1>功率因数校正电容计算器</h1>
+        <p>频率默认50HZ</p><p>电压 ：<input type="text" id="inputV" placeholder="如: 380"> (V)</p>
+        <p>额定功率 ：<input type="text" id="inputP" placeholder="如: 1000"> (w)</p>
+        <p>原功率因数：<input type="text" id="input1" placeholder="如: 0.5"></p>
+        <p>目标功率因数：<input type="text" id="input2"  placeholder="如: 0.9"></p>
+        <p>磁极对数：<input type="text" id="inputPoles" placeholder="如: 2"> (对)(只算功率因数可不填)</p>
+    <p>额定转速 ：<input type="text" id="inputRatedSpeed" placeholder="如: 1470"> (rpm)(只算功率因数可不填)</p>
+      <p>电源类型：
+        <input type="radio" id="singlePhase" name="phaseType" value="single" checked> 单相
+        <input type="radio" id="threePhase" name="phaseType" value="three"> 三相
+    </p>
+    <div id="connectionTypeSection">
+        <p>连接方式：
+            <input type="radio" id="star" name="connectionType" value="star" checked> 星形
+            <input type="radio" id="delta" name="connectionType" value="delta"> 三角形
+        </p>
+    </div>
+        <p><button onclick="showResult()">计算</button></p>
+        <p id="result"></p>
+           
+      
+<!-- 画布元素，用于绘制图表 -->
+<canvas id="phasorChart" width="400" height="400"></canvas>
+
+    </body>
+    <script>
+//tan  2023，12，23
+    
+    
+    
+//定义电源电压（V），负载功率（W），原功率因数（cos1），目标功率因数（cos2）
+let V; //电压（伏特）
+let P; //功率（瓦特）
+let cos1; //原功率因数
+let cos2; //目标功率因数
+let phaseType;
+let connectionType;
+let poles;//磁极对数
+let C,N,Torque;// 电容;转速（rpm）;扭矩
+let slipRate;// 转差率
+let rotorFrequency;// 转子感应电流的频率
+let I1,I2;
+let phi1,phi2;
+let result;
+
+//计算需要的电容值（uF）
+function calculateCapacitance(V, P, cos1, cos2, phaseType, connectionType, poless,ratedSpeed) {
+  
+  //其中f是电源频率（赫兹），这里假设为50
+  let f = 50; //频率（赫兹）
+  let tan1 = Math.tan(Math.acos(cos1));
+  let tan2 = Math.tan(Math.acos(cos2));
+  
+ 
+       // 计算功率因数角
+  phi1 = Math.acos(cos1) * (180 / Math.PI); // 原始功率因数角（度）
+  phi2 = Math.acos(cos2) * (180 / Math.PI); // 目标功率因数角（度）
+       
+  
+  C = P * (tan1 - tan2)*1000000 / (2 * Math.PI * f * V * V ); //电容
+    N = 60 * f / poles; // 转速（rpm）
+    slipRate = (1 - ratedSpeed / N) * 100; // 转差率
+  Torque = 9.55 * P / N; // 扭矩（Nm）
+  let slip = 1 - ratedSpeed / N; // 转差率（小数）
+  rotorFrequency = slip * f; // 转子感应电流的频率
+  
+  
+// 如果是三相电，根据连接方式调整计算公式
+   
+  if (phaseType === 'three') {
+            if (connectionType === 'delta') {
+                C = C * Math.sqrt(3); // 三角形连接时调整
+            }
+        }
+        
+    
+        
+  // 计算有功功率、无功功率和视在功率
+    let Q1 = P * tan1; // 原无功功率
+    let Q2 = P * tan2; // 目标无功功率
+    let S1 = P / cos1; // 原视在功率
+    let S2 = P / cos2; // 目标视在功率
+     // 计算电流
+  I1 = P / (V * cos1); // 原始电流
+  I2 = P / (V * cos2); // 目标电流
+
+    return { C, Q1, Q2, S1, S2 ,N, Torque, slipRate, rotorFrequency, I1, I2 , phi1, phi2}; //返回电容值等参数
+}
+
+//显示结果
+function showResult() {
+ 
+          //获取输入框的值
+  V = document.getElementById("inputV").value; //电压
+  P = document.getElementById("inputP").value; //功率
+  cos1 = document.getElementById("input1").value; //原功率因数
+  cos2 = document.getElementById("input2").value; //目标功率因数
+//单相
+    phaseType = document.querySelector('input[name="phaseType"]:checked').value;
+//三相
+  connectionType = document.querySelector('input[name="connectionType"]:checked').value;
+// 磁极对数
+    poles = parseFloat(document.getElementById("inputPoles").value); 
+ // 额定转速
+    ratedSpeed = parseFloat(document.getElementById("inputRatedSpeed").value);
+
+    if(poles.value == ""){
+           poles.value = 4;
+       }
+       
+        if (phaseType === 'single') {
+            connectionType = null; // 单相时不考虑连接方式
+        }
+
+       
+
+    // 检查输入是否合法
+    if (isNaN(V) || isNaN(P) || isNaN(cos1) || isNaN(cos2) ) {
+        alert("请输入有效数字");
+    } else if (V <= 0 || P <= 0 || cos1 <= 0 || cos1 > 1 || cos2 <= 0 || cos2 > 1 ) {
+        alert("请输入正数，功率因数需在0到1之间");
+    } else {
+        result = calculateCapacitance(V, P, cos1, cos2, phaseType, connectionType, poles, ratedSpeed);
+
+//console.log("phi1: ", result.phi1); // 检查 phi1 的值
+//console.log("phi2: ", result.phi2); // 检查 phi2 的值
+
+
+document.getElementById("result").innerHTML = `
+            需要的电容值为：${result.C.toFixed(6)} uF<br>
+            原始电流为：${result.I1.toFixed(2)} A<br>
+        目标电流为：${result.I2.toFixed(2)} A<br>
+            原无功功率为：${result.Q1.toFixed(2)} VAR<br>
+            目标无功功率为：${result.Q2.toFixed(2)} VAR<br>
+            原视在功率为：${result.S1.toFixed(2)} VA<br>
+            目标视在功率为：${result.S2.toFixed(2)} VA<br>
+            同步转速为：${result.N.toFixed(2)} RPM<br>
+            转差率为：${result.slipRate.toFixed(2)}%<br>
+            转子感应电流的频率为：${result.rotorFrequency.toFixed(0)} Hz<br>        扭矩为：${result.Torque.toFixed(2)} Nm`;
+    }
+  
+   // 绘制相量图
+   // 使用 result 中的 phi1 和 phi2 调用 drawPhasorChart
+  drawPhasorChart(result.I1, result.phi1, result.I2, result.phi2, V); // 确保 V 也被传递
+
+}
+
+
+// 初始化连接方式部分的显示状态
+    function updateConnectionTypeSectionDisplay() {
+        let phaseType = document.querySelector('input[name="phaseType"]:checked').value;
+        document.getElementById("connectionTypeSection").style.display = phaseType === 'three' ? 'block' : 'none';
+    }
+
+    // 监听电源类型的选择变化
+    document.querySelectorAll('input[name="phaseType"]').forEach(function(radio) {
+        radio.addEventListener('change', updateConnectionTypeSectionDisplay);
+    });
+
+    // 页面加载时初始化
+    updateConnectionTypeSectionDisplay();
+    
+    
+    
+    
+    function drawPhasorChart(I1, phi1, I2, phi2, V) {
+  let ctx = document.getElementById('phasorChart').getContext('2d');
+
+  // 将角度转换为弧度，并考虑电流落后于电压
+  let phi1Rad = -phi1 * Math.PI / 180;
+  let phi2Rad = -phi2 * Math.PI / 180;
+
+  // 计算电流终点坐标
+  let I1_x = I1 * Math.cos(phi1Rad);
+  let I1_y = I1 * Math.sin(phi1Rad);
+  let I2_x = I2 * Math.cos(phi2Rad);
+  let I2_y = I2 * Math.sin(phi2Rad);
+
+  let maxVal = Math.max(V, Math.abs(I1_x), Math.abs(I1_y), Math.abs(I2_x), Math.abs(I2_y));
+
+  let arrowPlugin = {
+  id: 'arrowPlugin',
+  afterDatasetsDraw(chart, args, pluginOptions) {
+    const {ctx, data, chartArea: {top, bottom, left, right}} = chart;
+    ctx.fillStyle = pluginOptions.color;
+
+    data.datasets.forEach((dataset, i) => {
+      const meta = chart.getDatasetMeta(i);
+      if (!meta.hidden) {
+        meta.data.forEach((point, index) => {
+          if (index === 0) return; // Skip the first point
+          const {x, y} = point.getProps(['x', 'y'], true);
+          const prevX = meta.data[index - 1].x;
+          const prevY = meta.data[index - 1].y;
+
+          // Calculate angle
+          const angle = Math.atan2(y - prevY, x - prevX);
+
+          // Draw arrowhead
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(-5, -5);
+          ctx.lineTo(-5, 5);
+          ctx.closePath();
+          ctx.restore();
+          ctx.fill();
+        });
+      }
+    });
+  }
+};
+
+  let data = {
+    datasets: [
+      {
+        label: `V: ${V}V`,
+        data: [{x: 0, y: 0}, {x: V, y: 0}],
+        borderColor: 'rgba(0, 0, 255, 1)',
+        borderWidth: 2,
+        showLine: true,
+        fill: false,
+        pointRadius: 0,
+        pointStyle: 'triangle' // 箭头样式
+      },
+      {
+        label: `I1: ${I1.toFixed(2)}A∠${(-phi1).toFixed(2)}°`,
+        data: [{x: 0, y: 0}, {x: I1_x, y: I1_y}],
+        borderColor: 'rgba(255, 99, 132, 1)',
+        borderWidth: 2,
+        showLine: true,
+        fill: false,
+        pointRadius: 0,
+        pointStyle: 'triangle'
+      }, 
+      {
+        label: `I2: ${I2.toFixed(2)}A∠${(-phi2).toFixed(2)}°`,
+        data: [{x: 0, y: 0}, {x: I2_x, y: I2_y}],
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 2,
+        showLine: true,
+        fill: false,
+        pointRadius: 0,
+        pointStyle: 'triangle'
+      }
+    ]
+  };
+
+  let options = {
+    scales: {
+      x: {
+        beginAtZero: true,
+        max: maxVal + 10,
+        type: 'linear',
+        position: 'bottom'
+      },
+      y: {
+        beginAtZero: true,
+        max: maxVal + 10,
+        min: -maxVal - 10,
+        type: 'linear'
+      }
+    },
+    elements: {
+      line: {
+        tension: 0 // 禁用曲线
+      },
+      point: {
+        pointStyle: 'line', // 使用线型点样式
+        radius: 6 // 点的大小
+      }
+    },
+    plugins: {
+      tooltip: {
+        enabled: false // 禁用工具提示
+      },
+      legend: {
+        display: true, // 显示图例
+        labels: {
+          generateLabels: function(chart) {
+            return chart.data.datasets.map(function(dataset, i) {
+              return {
+                text: dataset.label,
+                fillStyle: dataset.borderColor,
+              };
+            });
+          }
+        }
+      }
+    }
+  };
+
+   new Chart(ctx, {
+    type: 'scatter',
+    data: data,
+    options: options,
+    plugins: [arrowPlugin] // Register the custom plugin
+  });
+}
+</script>
+</html> 
+    
